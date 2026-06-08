@@ -85,3 +85,38 @@ The project follows the **base + overlays** Kustomize pattern:
 - **`base/`** defines the core Deployment and Service resources shared by all environments.
 - **`overlays/dev/`** and **`overlays/prod/`** each reference the base and apply JSON patches to set environment-specific values (namespace, replica count).
 - ArgoCD watches this repository and automatically syncs each overlay to its target namespace whenever changes are pushed to `main`.
+
+## What This Demonstrates
+
+- **GitOps single source of truth** — cluster state is fully declared in Git;
+  no manual kubectl applies in production
+- **Environment separation** — dev and prod run in isolated namespaces with
+  different replica counts, configured via Kustomize overlays without
+  duplicating base manifests
+- **Automated sync** — ArgoCD watches the `main` branch; a `git push` is the
+  only deployment mechanism
+- **Self-heal behavior** — if cluster state drifts from Git (e.g. a manual
+  `kubectl scale`), ArgoCD detects and corrects the drift automatically
+
+## Self-Heal Test
+
+To observe ArgoCD's drift detection in action:
+
+```bash
+# 1. Scale prod deployment manually (introduce drift)
+kubectl scale deployment my-app -n prod --replicas=1
+
+# 2. Watch ArgoCD detect and correct it (within ~3 minutes)
+argocd app get my-app-prod --watch
+
+# Expected: ArgoCD reverts replicas back to 3 as declared in Git
+```
+
+## Tech Stack
+
+| Tool | Role |
+|---|---|
+| ArgoCD | GitOps continuous delivery |
+| Kustomize | Environment-specific config layering |
+| Kubernetes (minikube) | Local cluster |
+| nginx:1.27 | Demo workload |
